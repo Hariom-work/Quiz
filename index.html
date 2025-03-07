@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+</head>
+<body>
+    <h2>Real-Time Quiz Submission</h2>
+    <form id="quiz-form">
+        <div id="quiz-questions"></div>
+        <button type="submit">Submit Quiz</button>
+    </form>
+
+    <h3>Results:</h3>
+    <pre id="result"></pre>
+
+    <script>
+        let ws = new WebSocket("ws://localhost:8000/ws/quiz");
+        let quizData = {};
+
+        // Fetch quiz questions
+        async function loadQuiz() {
+            let response = await fetch("http://localhost:8000/get_quiz?quiz_id=quiz1");
+            quizData = await response.json();
+
+            let quizContainer = document.getElementById("quiz-questions");
+            quizContainer.innerHTML = ""; // Clear previous questions
+
+            quizData.questions.forEach(q => {
+                quizContainer.innerHTML += `
+                    <p>${q.question}</p>
+                    ${q.options.map(option => `<label><input type="radio" name="${q.id}" value="${option.charAt(0)}"> ${option}</label><br>`).join('')}
+                `;
+            });
+        }
+
+        document.getElementById("quiz-form").onsubmit = function(event) {
+            event.preventDefault();
+            
+            let answers = {};
+            quizData.questions.forEach(q => {
+                let selected = document.querySelector(`input[name="${q.id}"]:checked`);
+                if (selected) answers[q.id] = selected.value;
+            });
+
+            let submission = {
+                student_id: "student123",
+                quiz_id: "quiz1",
+                answers: answers
+            };
+
+            ws.send(JSON.stringify(submission));
+        };
+
+        ws.onmessage = function(event) {
+            document.getElementById("result").innerText = event.data;
+        };
+
+        // Load quiz on page load
+        loadQuiz();
+    </script>
+</body>
+</html>
